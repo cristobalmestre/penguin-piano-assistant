@@ -1,7 +1,10 @@
 # penguin-piano-assistant
 Piano Assistant on a Raspberry Pi
 
-Piano Assitant Execute instructions and must-knows
+Proof of concept: Improve your children's Piano Skills with this beautiful 3D printed penguin
+Watch the video to learn more: https://www.youtube.com/watch?v=-PIMhoII1Og
+
+**Piano Assitant Execute instructions and must-knows**
 
 All of the installed libraries can be found at the config_assitant.py file, plus detailed instructions for instaling the compiling libraries.
 The program was tested with Python 3.11.4 on a Raspberry Pi 4 with Raspian Os.
