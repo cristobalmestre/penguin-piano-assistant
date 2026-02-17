@@ -8,12 +8,13 @@ calling the real functions directly. Nothing is reimplemented here.
 FILES TESTED (real imports, real function calls):
   - config.py                  All path constants verified
   - config_assistant.py        Import check (no crash, directories created)
-  - Read_MIDI_record_compare.py  parse_midi() called for real (no hardware needed)
-  - Comparison_scoring.py      calculate_scores() called for real
+  - midi_parser.py             parse_midi() called for real (no hardware needed)
+  - Comparison_scoring.py      calculate_scores_from_arrays() with synthetic data;
+                               calculate_scores() if CSV files are present
   - graphic_interphase_for_pi.py  Import check, App class structure verified
 
 WHAT CANNOT BE TESTED ON WINDOWS (hardware required):
-  - record_and_process() in Read_MIDI_record_compare.py
+  - record_and_process() in audio_recorder.py
         Needs pyaudio + aubio + microphone (Pi only)
   - App.__init__() in graphic_interphase_for_pi.py
         Needs digitalio + board + adafruit display (Pi only)
@@ -90,11 +91,11 @@ except ImportError as e:
     print("  %s  import config_assistant: %s" % (FAIL, e))
     results.append(("fail", "import config_assistant"))
 
-# --- 3. Read_MIDI_record_compare.py - parse_midi() (real function) ------------
-print("\n-- 3. Read_MIDI_record_compare.py - parse_midi() (real function) -------")
+# --- 3. midi_parser.py - parse_midi() (real function) ------------------------
+print("\n-- 3. midi_parser.py - parse_midi() (real function) --------------------")
 
 try:
-    import Read_MIDI_record_compare
+    import midi_parser
 
     check("Module imports without crashing (no hardware triggered)", lambda: None)
 
@@ -103,44 +104,64 @@ try:
         skip("parse_midi()", "'%s.mid' not found in MIDI Files/" % SONG_NAME)
     else:
         def _run_parse_midi():
-            out_path = Read_MIDI_record_compare.parse_midi(SONG_NAME)
+            out_path = midi_parser.parse_midi(SONG_NAME)
             import pandas as pd
             df = pd.read_csv(out_path)
             return "%d notes parsed and saved to %s" % (len(df), out_path.name)
         check("parse_midi() parses MIDI and writes reference CSV", _run_parse_midi)
 
-    skip("record_and_process()",
+    skip("audio_recorder.record_and_process()",
          "needs pyaudio + aubio + microphone - Pi hardware only")
 
 except ImportError as e:
-    print("  %s  import Read_MIDI_record_compare: %s" % (FAIL, e))
-    results.append(("fail", "import Read_MIDI_record_compare"))
+    print("  %s  import midi_parser: %s" % (FAIL, e))
+    results.append(("fail", "import midi_parser"))
 
 # --- 4. Comparison_scoring.py - calculate_scores() (real function) ------------
-print("\n-- 4. Comparison_scoring.py - calculate_scores() (real function) -------")
+print("\n-- 4. Comparison_scoring.py --------------------------------------------")
 
-ref_csv  = MIDI_CSV_DIR       / (SONG_NAME + ".csv")
-play_csv = RECORDED_TUNES_DIR / (SONG_NAME + "_for_comparison.csv")
+try:
+    import Comparison_scoring
+    import numpy as np
 
-if not ref_csv.exists():
-    skip("calculate_scores()",
-         "No reference CSV found - run parse_midi() first (section 3 above)")
-elif not play_csv.exists():
-    skip("calculate_scores()",
-         "No recorded comparison file found at:\n"
-         "         %s\n"
-         "         Run the program on the Pi to generate it, then copy it here." % play_csv)
-else:
-    try:
-        import Comparison_scoring
-        check("Comparison_scoring imports without crashing", lambda: None)
+    check("Comparison_scoring imports without crashing", lambda: None)
+
+    def _run_pure_scoring():
+        # Synthetic data: 5-note original, 3-note played (all correct, equal timing)
+        original_pitches  = np.array([60, 62, 64, 65, 67])
+        played_pitches    = np.array([60, 62, 64])
+        original_timediff = np.array([float('nan'), 0.5, 0.5, 0.5, 0.5])
+        played_timediff   = np.array([float('nan'), 0.5, 0.5])
+        p_score, p_cat, t_score, t_cat = Comparison_scoring.calculate_scores_from_arrays(
+            original_pitches, played_pitches, original_timediff, played_timediff)
+        assert p_score == 100.0, "expected perfect pitch score, got %.1f" % p_score
+        assert p_cat == "high",  "expected high pitch category, got %s" % p_cat
+        assert t_score == 100.0, "expected perfect time score, got %.1f" % t_score
+        return "pitch=%.1f (%s), time=%.1f (%s)" % (p_score, p_cat, t_score, t_cat)
+
+    check("calculate_scores_from_arrays() with synthetic data (no files needed)",
+          _run_pure_scoring)
+
+    ref_csv  = MIDI_CSV_DIR       / (SONG_NAME + ".csv")
+    play_csv = RECORDED_TUNES_DIR / (SONG_NAME + "_for_comparison.csv")
+
+    if not ref_csv.exists():
+        skip("calculate_scores()",
+             "No reference CSV found - run parse_midi() first (section 3 above)")
+    elif not play_csv.exists():
+        skip("calculate_scores()",
+             "No recorded comparison file found at:\n"
+             "         %s\n"
+             "         Run the program on the Pi to generate it, then copy it here." % play_csv)
+    else:
         def _run_scoring():
             p_score, p_cat, t_score, t_cat = Comparison_scoring.calculate_scores()
             return "pitch=%.1f (%s), time=%.1f (%s)" % (p_score, p_cat, t_score, t_cat)
-        check("calculate_scores() runs and returns valid results", _run_scoring)
-    except Exception as e:
-        print("  %s  calculate_scores(): %s" % (FAIL, e))
-        results.append(("fail", "calculate_scores()"))
+        check("calculate_scores() with real CSV files", _run_scoring)
+
+except Exception as e:
+    print("  %s  Comparison_scoring: %s" % (FAIL, e))
+    results.append(("fail", "Comparison_scoring import"))
 
 # --- 5. graphic_interphase_for_pi.py (real import, class structure) -----------
 print("\n-- 5. graphic_interphase_for_pi.py (real import) -----------------------")

@@ -1,0 +1,12 @@
+# Core scientific stack
+numpy
+pandas
+
+# MIDI parsing
+pretty_midi
+
+# Itertools extension (pairwise backport for Python < 3.10)
+more-itertools
+
+# Image handling (GUI display)
+Pillow

@@ -130,7 +130,7 @@ class App:
         # Start the subprocess and store the subprocess object
         # Read_MIDI_record_compare.py is the code that does the recording
         print("Executing code for stage", self.stage)
-        self.subprocess_Read_MIDI = subprocess.Popen(["python", str(BASE_DIR / "Read_MIDI_record_compare.py")])
+        self.subprocess_Read_MIDI = subprocess.Popen(["python3", str(BASE_DIR / "audio_recorder.py")])
 
         # Schedule a method to check the subprocess status after a certain time
         self.root.after(1000, self.check_subprocess_status)

@@ -1,56 +1,15 @@
-# Imports that are always needed (no hardware dependency)
+# Stages 2 & 3: Recording the played song and summarising it into strokes.
+#
+# pyaudio and aubio are imported inside record_and_process() so this file
+# can be imported on any machine without Pi hardware installed.
+
 import pandas as pd
 import numpy as np
-# from itertools import pairwise
 from more_itertools import pairwise
-import os
 
-import pretty_midi
-
-from config import SONG_NAME, MIDI_FILES_DIR, MIDI_CSV_DIR, RECORDED_TUNES_DIR, FLAG_FILE
+from config import SONG_NAME, RECORDED_TUNES_DIR, FLAG_FILE
 
 
-# STAGE 1: Reading and parsing a MIDI file
-def parse_midi(song_name=SONG_NAME):
-    """Parse the reference MIDI file and write it as a CSV for later comparison."""
-
-    song_to_midi = MIDI_FILES_DIR / (song_name + '.mid')
-    midi_data = pretty_midi.PrettyMIDI(str(song_to_midi))
-
-    tiempo = midi_data.get_end_time()
-    print('time: ', tiempo, ' seconds')
-
-    # Total piano strokes
-    Note_sequence = midi_data.instruments[0].notes
-
-    note_pitches = []
-    note_start_times = []
-    note_end_times = []
-    note_velocities = []
-
-    for note in Note_sequence:
-        note_pitches.append(note.pitch)
-        note_start_times.append(note.start)
-        note_end_times.append(note.end)
-        note_velocities.append(note.velocity)
-
-    # Create a pandas Dataframe with the notes and their characteristics
-    dataset = pd.DataFrame(
-        {'pitches': note_pitches, 'start': note_start_times, 'end': note_start_times, 'velocity': note_velocities},
-        columns=['pitches', 'start', 'end', 'velocity']
-    )
-    dataset = dataset.sort_values(by=['start'], ascending=True)
-    dataset['start_diff'] = dataset['start'].diff()
-
-    # Save the DataFrame to a CSV file
-    path_original_song = MIDI_CSV_DIR / (song_name + '.csv')
-    dataset.to_csv(path_original_song, index=False)
-    print("Original song saved to ", path_original_song)
-
-    return path_original_song
-
-
-# STAGE 2 + 3: Recording the played song and summarising it into strokes
 def record_and_process(song_name=SONG_NAME):
     """Record audio from the microphone and produce a comparison CSV.
 
@@ -250,5 +209,4 @@ def record_and_process(song_name=SONG_NAME):
 
 
 if __name__ == "__main__":
-    parse_midi()
     record_and_process()

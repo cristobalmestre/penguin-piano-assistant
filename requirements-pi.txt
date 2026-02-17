@@ -1,0 +1,11 @@
+# Raspberry Pi hardware dependencies.
+# Install after requirements.txt:
+#   pip install -r requirements-pi.txt
+# Also required (system package before pip install):
+#   sudo apt-get install portaudio19-dev
+
+-r requirements.txt
+
+pyaudio
+aubio
+adafruit-circuitpython-rgb-display
