@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Generated output files (produced at runtime)
+MIDI_to_CSV_songs/
+player_recorded_tunes/
+stop_processing.flag
