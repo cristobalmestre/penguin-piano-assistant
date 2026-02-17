@@ -4,10 +4,9 @@ import subprocess
 from multiprocessing import Process, Queue
 import Comparison_scoring  # Import the subprocess that will give variables back to the code
 import os
-import digitalio
-import board
-from adafruit_rgb_display import hx8357
 
+# Hardware imports are intentionally inside App.__init__ so this file can be
+# imported on any machine (Windows, Mac) for testing without Pi hardware.
 from config import BASE_DIR, INTRO_SCREENS_DIR, RESULT_SCREENS_DIR, FLAG_FILE
 
 
@@ -28,7 +27,11 @@ class App:
         
         
         # Code for configurating the display
-        
+        # Hardware imports live here so that the file can be imported on non-Pi machines
+        import digitalio
+        import board
+        from adafruit_rgb_display import hx8357
+
         # Configuration for CS and DC pins (these are PiTFT defaults):
         self.cs_pin = digitalio.DigitalInOut(board.CE0)
         self.dc_pin = digitalio.DigitalInOut(board.D25)

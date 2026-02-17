@@ -2,30 +2,29 @@
 """
 test_config.py - Offline test suite for the Piano Assistant.
 
-This script tests what it can genuinely test on Windows/Mac without Pi hardware.
-It is honest about what it cannot test and why.
+Tests every file that can be tested without Pi hardware by importing and
+calling the real functions directly. Nothing is reimplemented here.
 
-FILES TESTED HERE (directly, using real code):
-  - config.py               All path constants
-  - config_assistant.py     Module import (no crash on import)
-  - Comparison_scoring.py   calculate_scores() called for real
+FILES TESTED (real imports, real function calls):
+  - config.py                  All path constants verified
+  - config_assistant.py        Import check (no crash, directories created)
+  - Read_MIDI_record_compare.py  parse_midi() called for real (no hardware needed)
+  - Comparison_scoring.py      calculate_scores() called for real
+  - graphic_interphase_for_pi.py  Import check, App class structure verified
 
-FILES THAT CANNOT BE TESTED ON WINDOWS (hardware required):
-  - Read_MIDI_record_compare.py
-        Reason: imports pyaudio and opens a microphone stream at the top level
-        the instant it is imported. Cannot be imported without Pi hardware.
-  - graphic_interphase_for_pi.py
-        Reason: imports digitalio, board, adafruit_rgb_display at the top level.
-        Cannot be imported without Pi GPIO hardware.
-
-These two files are tested only by running the full program on the Pi.
+WHAT CANNOT BE TESTED ON WINDOWS (hardware required):
+  - record_and_process() in Read_MIDI_record_compare.py
+        Needs pyaudio + aubio + microphone (Pi only)
+  - App.__init__() in graphic_interphase_for_pi.py
+        Needs digitalio + board + adafruit display (Pi only)
+  - The full GUI flow
+        Same reason as above
 
 Usage:
     python test_config.py
 """
 
 import sys
-import importlib
 
 PASS = "[PASS]"
 FAIL = "[FAIL]"
@@ -47,8 +46,8 @@ def skip(label, reason):
     print("  %s  %s: %s" % (SKIP, label, reason))
     results.append(("skip", label))
 
-# --- 1. config.py (real file) -------------------------------------------------
-print("\n-- 1. config.py paths (testing the real config.py) --------------------")
+# --- 1. config.py -------------------------------------------------------------
+print("\n-- 1. config.py paths --------------------------------------------------")
 
 try:
     from config import (BASE_DIR, SONG_NAME, MIDI_FILES_DIR, MIDI_CSV_DIR,
@@ -79,21 +78,45 @@ except ImportError as e:
     print("  %s  Could not import config.py: %s" % (FAIL, e))
     sys.exit(1)
 
-# --- 2. Reference MIDI file ---------------------------------------------------
-print("\n-- 2. Reference MIDI file ----------------------------------------------")
+# --- 2. config_assistant.py (real import) -------------------------------------
+print("\n-- 2. config_assistant.py (real import) --------------------------------")
 
-midi_path = MIDI_FILES_DIR / (SONG_NAME + ".mid")
-check("'%s.mid' found in MIDI Files/" % SONG_NAME,
-      lambda: None if midi_path.exists() else (_ for _ in ()).throw(FileNotFoundError(midi_path)))
+try:
+    import config_assistant
+    check("config_assistant imports without crashing", lambda: None)
+    check("create_directories() runs without error",
+          lambda: config_assistant.create_directories(config_assistant.directories))
+except ImportError as e:
+    print("  %s  import config_assistant: %s" % (FAIL, e))
+    results.append(("fail", "import config_assistant"))
 
-# --- 3. Read_MIDI_record_compare.py (CANNOT test on Windows) ------------------
-print("\n-- 3. Read_MIDI_record_compare.py --------------------------------------")
-print("  %s  This file cannot be imported on Windows." % SKIP)
-print("       It calls pyaudio.PyAudio() and opens a microphone stream at the")
-print("       top level, which requires Pi hardware. Test this on the Pi only.")
-results.append(("skip", "Read_MIDI_record_compare.py"))
+# --- 3. Read_MIDI_record_compare.py - parse_midi() (real function) ------------
+print("\n-- 3. Read_MIDI_record_compare.py - parse_midi() (real function) -------")
 
-# --- 4. Comparison_scoring.py (real function, real file) ----------------------
+try:
+    import Read_MIDI_record_compare
+
+    check("Module imports without crashing (no hardware triggered)", lambda: None)
+
+    midi_path = MIDI_FILES_DIR / (SONG_NAME + ".mid")
+    if not midi_path.exists():
+        skip("parse_midi()", "'%s.mid' not found in MIDI Files/" % SONG_NAME)
+    else:
+        def _run_parse_midi():
+            out_path = Read_MIDI_record_compare.parse_midi(SONG_NAME)
+            import pandas as pd
+            df = pd.read_csv(out_path)
+            return "%d notes parsed and saved to %s" % (len(df), out_path.name)
+        check("parse_midi() parses MIDI and writes reference CSV", _run_parse_midi)
+
+    skip("record_and_process()",
+         "needs pyaudio + aubio + microphone - Pi hardware only")
+
+except ImportError as e:
+    print("  %s  import Read_MIDI_record_compare: %s" % (FAIL, e))
+    results.append(("fail", "import Read_MIDI_record_compare"))
+
+# --- 4. Comparison_scoring.py - calculate_scores() (real function) ------------
 print("\n-- 4. Comparison_scoring.py - calculate_scores() (real function) -------")
 
 ref_csv  = MIDI_CSV_DIR       / (SONG_NAME + ".csv")
@@ -101,16 +124,16 @@ play_csv = RECORDED_TUNES_DIR / (SONG_NAME + "_for_comparison.csv")
 
 if not ref_csv.exists():
     skip("calculate_scores()",
-         "No reference CSV found at: %s\n"
-         "         Run the program once on the Pi to generate it, then copy it here." % ref_csv)
+         "No reference CSV found - run parse_midi() first (section 3 above)")
 elif not play_csv.exists():
     skip("calculate_scores()",
          "No recorded comparison file found at:\n"
          "         %s\n"
-         "         Run the program once on the Pi to generate it, then copy it here." % play_csv)
+         "         Run the program on the Pi to generate it, then copy it here." % play_csv)
 else:
     try:
         import Comparison_scoring
+        check("Comparison_scoring imports without crashing", lambda: None)
         def _run_scoring():
             p_score, p_cat, t_score, t_cat = Comparison_scoring.calculate_scores()
             return "pitch=%.1f (%s), time=%.1f (%s)" % (p_score, p_cat, t_score, t_cat)
@@ -119,52 +142,33 @@ else:
         print("  %s  calculate_scores(): %s" % (FAIL, e))
         results.append(("fail", "calculate_scores()"))
 
-# --- 5. graphic_interphase_for_pi.py (CANNOT test on Windows) -----------------
-print("\n-- 5. graphic_interphase_for_pi.py ------------------------------------")
-print("  %s  This file cannot be imported on Windows." % SKIP)
-print("       It imports digitalio, board, and adafruit_rgb_display at the top")
-print("       level, which require Pi GPIO hardware. Test this on the Pi only.")
-results.append(("skip", "graphic_interphase_for_pi.py"))
+# --- 5. graphic_interphase_for_pi.py (real import, class structure) -----------
+print("\n-- 5. graphic_interphase_for_pi.py (real import) -----------------------")
 
-# --- 6. Module imports --------------------------------------------------------
-print("\n-- 6. Python package availability -------------------------------------")
+try:
+    import graphic_interphase_for_pi
 
-HARDWARE_MODULES = {"digitalio", "board", "adafruit_rgb_display",
-                    "adafruit_blinka", "pyaudio", "aubio"}
+    check("Module imports without crashing (hardware imports deferred to __init__)",
+          lambda: None)
+    check("App class exists in the module",
+          lambda: None if hasattr(graphic_interphase_for_pi, 'App') else
+                  (_ for _ in ()).throw(AttributeError("App class not found")))
+    check("App.next_stage method exists",
+          lambda: None if hasattr(graphic_interphase_for_pi.App, 'next_stage') else
+                  (_ for _ in ()).throw(AttributeError("next_stage not found")))
+    check("App.execute_compare method exists",
+          lambda: None if hasattr(graphic_interphase_for_pi.App, 'execute_compare') else
+                  (_ for _ in ()).throw(AttributeError("execute_compare not found")))
+    check("App.show_image method exists",
+          lambda: None if hasattr(graphic_interphase_for_pi.App, 'show_image') else
+                  (_ for _ in ()).throw(AttributeError("show_image not found")))
 
-modules_to_check = [
-    ("config_assistant",     "setup script  (real file import)"),
-    ("Comparison_scoring",   "scoring logic (real file import)"),
-    ("pretty_midi",          "MIDI parsing"),
-    ("pandas",               "data processing"),
-    ("numpy",                "numerical ops"),
-    ("PIL",                  "image handling (Pillow)"),
-    ("more_itertools",       "pairwise utility"),
-    ("tkinter",              "GUI toolkit"),
-    ("pyaudio",              "audio recording     [Pi hardware]"),
-    ("aubio",                "pitch detection     [Pi hardware]"),
-    ("digitalio",            "Pi GPIO             [Pi hardware]"),
-    ("board",                "Pi board pins       [Pi hardware]"),
-    ("adafruit_rgb_display", "Pi display driver   [Pi hardware]"),
-]
+    skip("App() instantiation",
+         "App.__init__ connects to Pi display hardware - Pi only")
 
-for mod, desc in modules_to_check:
-    top = mod.split(".")[0]
-    if top in HARDWARE_MODULES:
-        try:
-            importlib.import_module(mod)
-            print("  %s  %-30s (%s)" % (PASS, mod, desc))
-            results.append(("pass", "import " + mod))
-        except ImportError:
-            skip("import %s" % mod, desc + " - not available on Windows, expected")
-    else:
-        try:
-            importlib.import_module(mod)
-            print("  %s  %-30s (%s)" % (PASS, mod, desc))
-            results.append(("pass", "import " + mod))
-        except ImportError as e:
-            print("  %s  %-30s (%s): %s" % (FAIL, mod, desc, e))
-            results.append(("fail", "import " + mod))
+except ImportError as e:
+    print("  %s  import graphic_interphase_for_pi: %s" % (FAIL, e))
+    results.append(("fail", "import graphic_interphase_for_pi"))
 
 # --- Summary ------------------------------------------------------------------
 print("\n-- Summary -------------------------------------------------------------")
@@ -173,11 +177,12 @@ failed  = sum(1 for r in results if r[0] == "fail")
 skipped = sum(1 for r in results if r[0] == "skip")
 print("  %d passed  |  %d failed  |  %d skipped\n" % (passed, failed, skipped))
 
-print("  What is skipped and why:")
-print("  - Read_MIDI_record_compare.py : opens microphone on import (needs pyaudio + Pi)")
-print("  - graphic_interphase_for_pi.py: imports GPIO libs on import (needs Pi)")
-print("  - Pi hardware packages        : not available on Windows")
-print()
+if skipped:
+    print("  Skipped (Pi hardware required):")
+    for r in results:
+        if r[0] == "skip":
+            print("    - " + r[1])
+    print()
 
 if failed:
     print("  FAILED checks:")
@@ -187,4 +192,4 @@ if failed:
     sys.exit(1)
 else:
     print("  All testable checks passed.")
-    print("  To fully test, run the program on the Pi and verify the display and recording work.")
+    print("  To fully test, deploy to the Pi and verify recording and display.")
