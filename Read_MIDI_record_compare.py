@@ -13,13 +13,11 @@ import os
 import pretty_midi
 
 # Load MIDI file into PrettyMIDI object
-
-# Gather name of the song
-from config_assistant import song_name
-#song_name = 'jingle_bells easy'
+from config import SONG_NAME, MIDI_FILES_DIR, MIDI_CSV_DIR, RECORDED_TUNES_DIR, FLAG_FILE
+song_name = SONG_NAME
 
 # Open song
-song_to_midi = 'MIDI Files/'+song_name+'.mid'
+song_to_midi = MIDI_FILES_DIR / (song_name + '.mid')
 midi_data = pretty_midi.PrettyMIDI(song_to_midi)
 
 # TEST: Print an empirical estimate of its global tempo
@@ -59,11 +57,7 @@ dataset = dataset.sort_values(by=['start'], ascending=True)
 dataset['start_diff']= dataset['start'].diff()
 
 # Save the DataFrame to a CSV file
-
-# create the file name on the correct folder
-song_name_csv = song_name+'.csv'
-base_dir = r'MIDI_to_CSV_songs'
-path_original_song = os.path.join(base_dir, song_name_csv)
+path_original_song = MIDI_CSV_DIR / (song_name + '.csv')
 
 # saving the CSV file
 dataset.to_csv(path_original_song, index=False)
@@ -90,8 +84,8 @@ INTENSITY_RATIO_UMBRALE = 2.0 # experimental
 
 # Create a flag file to indicate whether processing should continue
 # Flag exists: the process keeps going
-flag_file = "stop_processing.flag"
-open(flag_file, 'w').close()  # Create an empty flag file initially
+flag_file = FLAG_FILE
+flag_file.touch()  # Create an empty flag file initially
 
 # Initialize PyAudio
 p = pyaudio.PyAudio()
@@ -218,12 +212,8 @@ print("Stream closed.")
 
 
 # create the file names on the correct folder. 2 versions are created: one with all the input and one with the pitches that meet the minimum intensity
-song_name_csv = song_name+'_recorded.csv'
-song_name_csv_w_noise = song_name+'_w_noise_recorded.csv'
-base_dir = r'player_recorded_tunes'
-
-path_recorded_songs = os.path.join(base_dir, song_name_csv)
-path_recorded_songs_w_noise = os.path.join(base_dir, song_name_csv_w_noise)
+path_recorded_songs          = RECORDED_TUNES_DIR / (song_name + '_recorded.csv')
+path_recorded_songs_w_noise  = RECORDED_TUNES_DIR / (song_name + '_w_noise_recorded.csv')
 
 # saving the DataFrame to a CSV file
 df_ok.to_csv(path_recorded_songs, index=False)
@@ -289,8 +279,7 @@ df_strokes_summary['Pitch-duration (s)'] = df_strokes.groupby([grouper,'PITCH_Gr
 df_strokes_summary['Lines recorded'] = df_strokes.groupby([grouper,'PITCH_Group'])['Pitch (MIDI)'].count()
 
 
-song_name_csv_for_comparison = song_name+'_for_comparison.csv'
-path_recorded_songs_for_comparison = os.path.join(base_dir, song_name_csv_for_comparison)
+path_recorded_songs_for_comparison = RECORDED_TUNES_DIR / (song_name + '_for_comparison.csv')
 df_strokes_summary.to_csv(path_recorded_songs_for_comparison, index=False)
 
 print("Data for comparison saved to ",path_recorded_songs_for_comparison)

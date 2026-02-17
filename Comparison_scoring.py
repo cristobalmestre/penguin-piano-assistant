@@ -11,33 +11,16 @@ import os
 def calculate_scores():
 
     print("Opening the csv register of the original song")
-    from config_assistant import song_name
-    #song_name = 'jingle_bells easy'
-    song_name_csv = song_name+'.csv'
-    base_dir = r'MIDI_to_CSV_songs'
-    path_original_song = os.path.join(base_dir, song_name_csv)
+    from config import SONG_NAME, MIDI_CSV_DIR, RECORDED_TUNES_DIR
+    song_name = SONG_NAME
+    path_original_song = MIDI_CSV_DIR / (song_name + '.csv')
 
     correct_song = pd.read_csv(path_original_song)
     print("Original song succesfully retrieved")
 
-    # Test the Dataframe
-    #correct_song
-
-
-    # read the transcription for comparison in CSV 
-
+    # read the transcription for comparison in CSV
     print("Opening Transcription of the played song (for comparison)")
-    recorded_song_name_csv = song_name+'_for_comparison.csv'
-    recorded_base_dir = r'player_recorded_tunes'
-    path_recorded_songs = os.path.join(recorded_base_dir, recorded_song_name_csv)
-
-
-    # Testing with file containing the real song comparison (NEED TO EDIT)
-    #path_recorded_songs = os.path.join(recorded_base_dir, 'jingle_bells easy_recorded - real.csv')
-    recorded_song = pd.read_csv(path_recorded_songs)
-
-
-    # IMPORTANT: Remember to replace for the real file after tests!!!
+    path_recorded_songs = RECORDED_TUNES_DIR / (song_name + '_for_comparison.csv')
     recorded_song = pd.read_csv(path_recorded_songs)
     print("Trasncription succesfully retrieved")
 

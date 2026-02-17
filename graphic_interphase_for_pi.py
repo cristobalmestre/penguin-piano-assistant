@@ -8,23 +8,16 @@ import digitalio
 import board
 from adafruit_rgb_display import hx8357
 
-
-# from adafruit_hx8357 import HX8357 as touchscreen
-
-# import adafruit_touchscreen
-
-# Update the working directory
-from config_assistant import new_directory
-os.chdir(new_directory)
+from config import BASE_DIR, INTRO_SCREENS_DIR, RESULT_SCREENS_DIR, FLAG_FILE
 
 
 class App:
     def __init__(self, root):
         self.root = root
         self.stage = 0
-        self.image_folder = os.path.join("Screens", "Introduction_sequence")
+        self.image_folder = str(INTRO_SCREENS_DIR)
         self.images_intro = ["1 Music Sheet.png", "2 Music Sheet after.png", "3 Recording Start.png", "4 Recording During.png", "5 Recording Finished.png"]
-        self.image_results_folder = os.path.join("Screens", "Player_reports")
+        self.image_results_folder = str(RESULT_SCREENS_DIR)
         self.images_result = ["1.png", "2.png", "3.png", "4.png","5.png","6.png","7.png","8.png","9.png"]
 
         self.result_queue = Queue()  # Create a multiprocessing Queue for communication
@@ -128,14 +121,13 @@ class App:
  
     # This code will Read the MIDI File, transform it, then listen to the recording and stop it over the next click
     def execute_Read_MIDI_record(self):
-        flag_file = "stop_processing.flag"
-        if os.path.exists(flag_file):
-            os.remove(flag_file)  # Remove the flag file if it exists
+        if FLAG_FILE.exists():
+            FLAG_FILE.unlink()  # Remove the flag file if it exists
 
         # Start the subprocess and store the subprocess object
         # Read_MIDI_record_compare.py is the code that does the recording
         print("Executing code for stage", self.stage)
-        self.subprocess_Read_MIDI = subprocess.Popen(["python", "Read_MIDI_record_compare.py"])
+        self.subprocess_Read_MIDI = subprocess.Popen(["python", str(BASE_DIR / "Read_MIDI_record_compare.py")])
 
         # Schedule a method to check the subprocess status after a certain time
         self.root.after(1000, self.check_subprocess_status)
@@ -153,9 +145,8 @@ class App:
     
     # Helper function to finish recording after tapping the screen N2
     def remove_flag_file(self):
-        flag_file = "stop_processing.flag"
-        if os.path.exists(flag_file):
-            os.remove(flag_file)
+        if FLAG_FILE.exists():
+            FLAG_FILE.unlink()
 
     # Function that compares the played and original song. It calls Comparison_scoring.py 
     def execute_compare(self):

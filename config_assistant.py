@@ -44,14 +44,8 @@ import importlib
 import subprocess
 import os
 
-song_name = 'jingle_bells easy'
-
-# Update the working directory
-new_directory = r"/home/cristobal/music_assistant"
-os.chdir(new_directory)
-
-# Now the working directory has been changed
-print("Working directory changed to:", os.getcwd())
+from config import BASE_DIR, SONG_NAME
+song_name = SONG_NAME  # kept for any legacy references
 
 required_libraries = [
     "numpy",
@@ -90,26 +84,24 @@ def install_libraries(libraries):
             print(f"{library} installed successfully.")
 
 
-import os
-
-# List of directories to create
+# List of directories to create (relative names; BASE_DIR is prepended below)
 directories = [
     "MIDI Files",
     "MIDI_to_CSV_songs",
     "player_recorded_tunes",
     "Screens",
     "Screens/Introduction_sequence",
-    "Screens/Player_reports"
-
+    "Screens/Player_reports",
 ]
 
 def create_directories(directories):
     for directory in directories:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            print(f"Created directory: {directory}")
+        full_path = BASE_DIR / directory
+        if not full_path.exists():
+            full_path.mkdir(parents=True)
+            print(f"Created directory: {full_path}")
         else:
-            print(f"Directory already exists: {directory}")
+            print(f"Directory already exists: {full_path}")
 
 
             
